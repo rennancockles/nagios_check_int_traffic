@@ -5,7 +5,7 @@
 
 # Script para verificar trafego em portas de equipamentos  
 #
-# Usage: check_traffic HOSTADDR IF_NAME COMMUNITY DIRECTION MIN_VAL [[MID_MIN_VAL] [MID_MAX_VAL]] MAX_VAL
+# Usage: check_int_traffic HOSTADDR IF_NAME COMMUNITY DIRECTION MIN_VAL [[MID_MIN_VAL] [MID_MAX_VAL]] MAX_VAL
 #
 # HOSTADDR = IP do equipamento
 # IF_NAME = Nome da Interface no equipamento
