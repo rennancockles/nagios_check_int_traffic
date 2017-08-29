@@ -1,0 +1,123 @@
+#!/bin/bash
+
+# Author: Rennan Cockles
+# Date: 29/08/2017
+
+# Script para verificar trafego em portas de equipamentos  
+#
+# Usage: check_traffic HOSTADDR IF_NAME COMMUNITY DIRECTION MIN_VAL [[MID_MIN_VAL] [MID_MAX_VAL]] MAX_VAL
+#
+# HOSTADDR = IP do equipamento
+# IF_NAME = Nome da Interface no equipamento
+# COMMUNITY = Comunidade SNMP
+# DIRECTION = Sentido do trafego - IN ou OUT
+# MIN_VAL = Valor minimo em Mbps ou seja: 1Gbps = 1000
+# MID_MIN_VAL = Valor minimo para warning em Mbps ou seja: 3Gbps = 3000
+# MID_MAX_VAL = Valor maximo para warning em Mbps ou seja: 8Gbps = 8000
+# MAX_VAL = Valor maximo em Mbps ou seja: 10Gbps = 10000
+
+function err {
+  echo $1 
+  exit 3
+}
+
+function get_traffic_delta {
+  attempts=1
+
+  while [[ $attempts -le 3 ]]; do
+    # Faz a primeira leitura, aguarda o tempo da variavel time e faz a segunda leitura 
+    t1=`snmpget -v2c -c $COMMUNITY $HOSTADDR $DIRECTION.$INTERFACE | awk {'print $4'}`
+    sleep $TIME_DELTA
+    t2=`snmpget -v2c -c $COMMUNITY $HOSTADDR $DIRECTION.$INTERFACE | awk {'print $4'}`
+
+    delta=`expr $t2 - $t1`
+
+    [ $delta -gt 0 ] && break;
+
+    let attempts++
+  done
+  
+  echo $delta 
+}
+
+function check_mid_result {
+  if [ $1 -gt $MID_MIN_VAL ] && [ $1 -lt $MID_MAX_VAL ]; then
+    echo OK - $1 Mbps
+    exit 0
+  elif [ $1 -gt $MIN_VAL ] && [ $1 -lt $MID_MIN_VAL ]; then
+    echo Atencao - $1 Mbps
+    exit 1
+  elif [ $1 -gt $MID_MAX_VAL ] && [ $1 -lt $MAX_VAL ]; then
+    echo Atencao - $1 Mbps
+    exit 1
+  else
+    echo Verificar Circuito - $1 Mbps
+    exit 2
+  fi
+}
+
+function check_result {
+  if [ $1 -gt $MIN_VAL ] && [ $1 -lt $MAX_VAL ]; then
+    echo OK - $1 Mbps
+    exit 0
+  else
+    echo Verificar Circuito - $1 Mbps
+    exit 2
+  fi
+}
+
+
+if [ $# -lt 6 ]; then
+  err 'Utilizacao incorreta'
+fi
+
+
+HOSTADDR=$1
+IF_NAME=$2
+COMMUNITY=$3
+DIRECTION=$4
+
+if [ $# -eq 6 ]; then
+  USE_MID_RANGE=0
+  MIN_VAL=$5
+  MAX_VAL=$6
+elif [ $# -eq 8 ]; then
+  USE_MID_RANGE=1
+  MIN_VAL=$5
+  MID_MIN_VAL=$6
+  MID_MAX_VAL=$7
+  MAX_VAL=$8
+else
+  err 'Utilizacao incorreta'
+fi
+
+IN_OCT='1.3.6.1.2.1.31.1.1.1.6';
+OUT_OCT='1.3.6.1.2.1.31.1.1.1.10';
+
+# Tempo entre a primeira leitura e a segunda leitura
+TIME_DELTA=30;
+
+# Busca no equipamento o numero da Interface desejada
+INTERFACE=`snmpwalk -v2c -c $COMMUNITY $HOSTADDR 1.3.6.1.2.1.2.2.1.2 | grep -m 1 $IF_NAME | awk {'print $1'} | awk -F"." {'print $NF'}`;
+
+# Busca velocidade da interface
+# SPEED=`snmpget -v2c -c $COMMUNITY $HOSTADDR 1.3.6.1.2.1.31.1.1.1.15.$INTERFACE | awk {'print $4'}`;
+
+if [ `echo $DIRECTION | tr '[:lower:]' '[:upper:]'` = 'IN' ]; then
+  DIRECTION=$IN_OCT
+elif [ `echo $DIRECTION | tr '[:lower:]' '[:upper:]'` = 'OUT' ]; then
+  DIRECTION=$OUT_OCT
+else
+  err 'Utilizacao incorreta'
+fi
+
+
+TRAFFIC_DELTA=`get_traffic_delta`
+[ $TRAFFIC_DELTA -lt 0 ] && err 'Erro de leitura'
+
+## 'kilo' is 1024
+#result=`expr \( $TRAFFIC_DELTA \* 8 \) / \( $TIME_DELTA \* 1048576 \)`;
+## 'kilo' is 1000
+result=`expr \( $TRAFFIC_DELTA \* 8 \) / \( $TIME_DELTA \* 1000000 \)`;
+
+[ $USE_MID_RANGE -eq 1 ] && check_mid_result $result || check_result $result
