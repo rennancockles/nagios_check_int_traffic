@@ -40,3 +40,25 @@ define command{
         command_line    $USER1$/check_int_traffic $ARG1$ $ARG2$ $ARG3$ $ARG4$ $ARG5$ $ARG6$ $ARG7$ $ARG8$
 }
 ```
+
+&nbsp;
+
+### Using MID RANGES
+
+If the MID_MIN_VAL and MID_MAX_VAL variables are used, nagios will receive the following Exit Signals:
+
+* Below **MIN_VAL**  ->  **CRITICAL** signal
+* Between **MIN_VAL** and **MID_MIN_VAL**  ->  **WARNING** signal
+* Between **MID_MIN_VAL** and **MID_MAX_VAL**  ->  **OK** signal
+* Between **MID_MAX_VAL** and **MAX_VAL**  ->  **WARNING** signal
+* Above **MAX_VAL**  ->  **CRITICAL** signal
+
+&nbsp;
+
+### NOT using MID RANGES
+
+If the MID_MIN_VAL and MID_MAX_VAL variables are NOT used, nagios will receive the following Exit Signals:
+
+* Below **MIN_VAL**  ->  **CRITICAL** signal
+* Between **MIN_VAL** and **MAX_VAL**  ->  **OK** signal
+* Above **MAX_VAL**  ->  **CRITICAL** signal
