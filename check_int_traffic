@@ -21,8 +21,7 @@ function usage {
 }
 
 function err {
-  [[ -n $1 ]] && echo $1
-  usage
+  [[ -n $1 ]] && echo $1 || usage
   exit 3
 }
 
