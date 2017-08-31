@@ -3,21 +3,26 @@
 # Author: Rennan Cockles
 # Date: 29/08/2017
 
-# Script para verificar trafego em portas de equipamentos  
+# Script to check the interface bitrate in Mbps using SNMP
 #
 # Usage: check_int_traffic HOSTADDR IF_NAME COMMUNITY DIRECTION MIN_VAL [[MID_MIN_VAL] [MID_MAX_VAL]] MAX_VAL
 #
-# HOSTADDR = IP do equipamento
-# IF_NAME = Nome da Interface no equipamento
-# COMMUNITY = Comunidade SNMP
-# DIRECTION = Sentido do trafego - IN ou OUT
-# MIN_VAL = Valor minimo em Mbps ou seja: 1Gbps = 1000
-# MID_MIN_VAL = Valor minimo para warning em Mbps ou seja: 3Gbps = 3000
-# MID_MAX_VAL = Valor maximo para warning em Mbps ou seja: 8Gbps = 8000
-# MAX_VAL = Valor maximo em Mbps ou seja: 10Gbps = 10000
+# HOSTADDR = Host IP address
+# IF_NAME = Interface name
+# COMMUNITY = SNMP Community
+# DIRECTION = Traffic direction - IN ou OUT
+# MIN_VAL = Min value in Mbps: 1Gbps = 1000
+# MID_MIN_VAL = Min value to warning in Mbps: 3Gbps = 3000
+# MID_MAX_VAL = Max value to warning in Mbps: 8Gbps = 8000
+# MAX_VAL = Max value in Mbps: 10Gbps = 10000
+
+function usage {
+  echo 'Usage: check_int_traffic HOSTADDR IF_NAME COMMUNITY DIRECTION MIN_VAL [[MID_MIN_VAL] [MID_MAX_VAL]] MAX_VAL'
+}
 
 function err {
-  echo $1 
+  [[ -n $1 ]] && echo $1
+  usage
   exit 3
 }
 
@@ -25,7 +30,7 @@ function get_traffic_delta {
   attempts=1
 
   while [[ $attempts -le 3 ]]; do
-    # Faz a primeira leitura, aguarda o tempo da variavel time e faz a segunda leitura 
+    # Faz a primeira leitura, aguarda o tempo da variavel time e faz a segunda leitura
     t1=`snmpget -v2c -c $COMMUNITY $HOSTADDR $DIRECTION.$INTERFACE | awk {'print $4'}`
     sleep $TIME_DELTA
     t2=`snmpget -v2c -c $COMMUNITY $HOSTADDR $DIRECTION.$INTERFACE | awk {'print $4'}`
@@ -36,8 +41,8 @@ function get_traffic_delta {
 
     let attempts++
   done
-  
-  echo $delta 
+
+  echo $delta
 }
 
 function check_mid_result {
@@ -45,13 +50,13 @@ function check_mid_result {
     echo OK - $1 Mbps
     exit 0
   elif [ $1 -gt $MIN_VAL ] && [ $1 -lt $MID_MIN_VAL ]; then
-    echo Atencao - $1 Mbps
+    echo Attention - $1 Mbps
     exit 1
   elif [ $1 -gt $MID_MAX_VAL ] && [ $1 -lt $MAX_VAL ]; then
-    echo Atencao - $1 Mbps
+    echo Attention - $1 Mbps
     exit 1
   else
-    echo Verificar Circuito - $1 Mbps
+    echo Check Circuit - $1 Mbps
     exit 2
   fi
 }
@@ -61,14 +66,14 @@ function check_result {
     echo OK - $1 Mbps
     exit 0
   else
-    echo Verificar Circuito - $1 Mbps
+    echo Check Circuit - $1 Mbps
     exit 2
   fi
 }
 
 
 if [ $# -lt 6 ]; then
-  err 'Utilizacao incorreta'
+  err
 fi
 
 
@@ -88,7 +93,7 @@ elif [ $# -eq 8 ]; then
   MID_MAX_VAL=$7
   MAX_VAL=$8
 else
-  err 'Utilizacao incorreta'
+  err 'Check RANGE values. Something is not right'
 fi
 
 IN_OCT='1.3.6.1.2.1.31.1.1.1.6';
@@ -108,12 +113,12 @@ if [ `echo $DIRECTION | tr '[:lower:]' '[:upper:]'` = 'IN' ]; then
 elif [ `echo $DIRECTION | tr '[:lower:]' '[:upper:]'` = 'OUT' ]; then
   DIRECTION=$OUT_OCT
 else
-  err 'Utilizacao incorreta'
+  err 'DIRECTION value is not right'
 fi
 
 
 TRAFFIC_DELTA=`get_traffic_delta`
-[ $TRAFFIC_DELTA -lt 0 ] && err 'Erro de leitura'
+[ $TRAFFIC_DELTA -lt 0 ] && err 'Traffic reading error'
 
 ## 'kilo' is 1024
 #result=`expr \( $TRAFFIC_DELTA \* 8 \) / \( $TIME_DELTA \* 1048576 \)`;
